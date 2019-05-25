@@ -77,7 +77,7 @@ module Graph =
         abstract member RemoveMultiEdgesFrom : MultiEdge<'Node> seq -> IImmutableMultiGraph<'Node, 'NodeData, 'EdgeData>
 
     [<AbstractClass>]
-    type Graph<'Node, 'NodeData, 'EdgeData>() =
+    type GraphBase<'Node, 'NodeData, 'EdgeData>() =
         abstract member Adj : AdjacencyView<'Node, 'Node, 'EdgeData>
         abstract member Item : 'Node -> AtlasView<'Node, 'EdgeData> with get
         abstract member Item : EdgeNodes<'Node> -> 'EdgeData with get
@@ -132,8 +132,8 @@ module Graph =
                 else false
 
     [<AbstractClass>]
-    type MutableGraph<'Node, 'NodeData, 'EdgeData>() =
-        inherit Graph<'Node, 'NodeData, 'EdgeData>()
+    type MutableGraphBase<'Node, 'NodeData, 'EdgeData>() =
+        inherit GraphBase<'Node, 'NodeData, 'EdgeData>()
 
         abstract member AddNode : Node<'Node, 'NodeData> -> unit
         abstract member AddNodesFrom : Node<'Node, 'NodeData> seq -> unit
@@ -166,18 +166,18 @@ module Graph =
             member g.UpdateFrom graph = g.UpdateFrom graph
 
     [<AbstractClass>]
-    type ImmutableGraph<'Node, 'NodeData, 'EdgeData>() =
-        inherit Graph<'Node, 'NodeData, 'EdgeData>()
+    type ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>() =
+        inherit GraphBase<'Node, 'NodeData, 'EdgeData>()
 
-        abstract member AddNode : Node<'Node, 'NodeData> -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member AddNodesFrom : Node<'Node, 'NodeData> seq -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member RemoveNode : 'Node -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member RemoveNodesFrom : 'Node seq -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member AddEdge : Edge<'Node, 'EdgeData> -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member AddEdgesFrom : Edge<'Node, 'EdgeData> seq -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member RemoveEdge : EdgeNodes<'Node> -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member RemoveEdgesFrom : EdgeNodes<'Node> seq -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member MergeWith : IGraph<'Node, 'NodeData, 'EdgeData> -> ImmutableGraph<'Node, 'NodeData, 'EdgeData>
+        abstract member AddNode : Node<'Node, 'NodeData> -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member AddNodesFrom : Node<'Node, 'NodeData> seq -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveNode : 'Node -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveNodesFrom : 'Node seq -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member AddEdge : Edge<'Node, 'EdgeData> -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member AddEdgesFrom : Edge<'Node, 'EdgeData> seq -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveEdge : EdgeNodes<'Node> -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveEdgesFrom : EdgeNodes<'Node> seq -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member MergeWith : IGraph<'Node, 'NodeData, 'EdgeData> -> ImmutableGraphBase<'Node, 'NodeData, 'EdgeData>
 
         default g.AddNodesFrom nodes = Seq.fold (fun g n -> g.AddNode n) g nodes
         default g.RemoveNodesFrom nodes = Seq.fold (fun g n -> g.RemoveNode n) g nodes
@@ -202,12 +202,14 @@ module Graph =
             member g.MergeWith graph = upcast g.MergeWith graph
 
     [<AbstractClass>]
-    type MutableMultiGraph<'Node, 'NodeData, 'EdgeData>() =
-        inherit MutableGraph<'Node, 'NodeData, MultiGraphEdgeData<'EdgeData>>()
+    type MutableMultiGraphBase<'Node, 'NodeData, 'EdgeData>() =
+        inherit MutableGraphBase<'Node, 'NodeData, MultiGraphEdgeData<'EdgeData>>()
         
         abstract member Item : MultiEdge<'Node> -> 'EdgeData with get
         abstract member RemoveMultiEdge : MultiEdge<'Node> -> unit
         abstract member RemoveMultiEdgesFrom : MultiEdge<'Node> seq -> unit
+
+        default g.RemoveMultiEdgesFrom edges = Seq.iter g.RemoveMultiEdge edges
         
         interface IMultiGraph<'Node, 'NodeData, 'EdgeData> with
             member g.Item with get(k : MultiEdge<'Node>) = g.[k]
@@ -217,12 +219,14 @@ module Graph =
             member g.RemoveMultiEdgesFrom es = g.RemoveMultiEdgesFrom es
 
     [<AbstractClass>]
-    type ImmutableMultiGraph<'Node, 'NodeData, 'EdgeData>() =
-        inherit ImmutableGraph<'Node, 'NodeData, MultiGraphEdgeData<'EdgeData>>()
+    type ImmutableMultiGraphBase<'Node, 'NodeData, 'EdgeData>() =
+        inherit ImmutableGraphBase<'Node, 'NodeData, MultiGraphEdgeData<'EdgeData>>()
         
         abstract member Item : MultiEdge<'Node> -> 'EdgeData with get
-        abstract member RemoveMultiEdge : MultiEdge<'Node> -> ImmutableMultiGraph<'Node, 'NodeData, 'EdgeData>
-        abstract member RemoveMultiEdgesFrom : MultiEdge<'Node> seq -> ImmutableMultiGraph<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveMultiEdge : MultiEdge<'Node> -> ImmutableMultiGraphBase<'Node, 'NodeData, 'EdgeData>
+        abstract member RemoveMultiEdgesFrom : MultiEdge<'Node> seq -> ImmutableMultiGraphBase<'Node, 'NodeData, 'EdgeData>
+
+        default g.RemoveMultiEdgesFrom edges = Seq.fold (fun g e -> g.RemoveMultiEdge e) g edges
         
         interface IMultiGraph<'Node, 'NodeData, 'EdgeData> with
             member g.Item with get(k : MultiEdge<'Node>) = g.[k]
