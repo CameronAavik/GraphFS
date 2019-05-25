@@ -5,7 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="Filters.fs" />
+    <Compile Include="CoreViews.fs" />
+    <Compile Include="ReportViews.fs" />
+    <Compile Include="Graph.fs" />
   </ItemGroup>
 
 </Project>
