@@ -32,8 +32,6 @@ module Graph =
         abstract member NewNodeData : 'Node -> 'NodeData
         abstract member NewEdgeData : EdgeNodes<'Node>  -> 'EdgeData
         abstract member IsDirected : bool
-        abstract member SupportsMultipleParallelEdges : bool
-        abstract member SupportsSelfLoops : bool
         inherit IRODict2<'Node, 'Node, 'EdgeData>
 
     type IMutableGraph<'Node, 'NodeData, 'EdgeData> =
@@ -91,10 +89,27 @@ module Graph =
         abstract member NewNodeData : 'Node -> 'NodeData
         abstract member NewEdgeData : EdgeNodes<'Node>  -> 'EdgeData
         abstract member IsDirected : bool
-        abstract member SupportsMultipleParallelEdges : bool
-        abstract member SupportsSelfLoops : bool
 
         abstract member AsEnumerable : unit -> IEnumerable<KeyValuePair<'Node, IRODict<'Node, 'EdgeData>>>
+        
+        override g.Adj = new AdjacencyView<'Node, 'Node, 'EdgeData>(g)
+        override g.Item
+            with get(k : 'Node) =
+                let kvpSeq = seq { for nbr in (g.Neighbours k) -> new KeyValuePair<'Node, 'EdgeData>(nbr, g.[(k, nbr)]) }
+                let asDict = { new IRODict<'Node, 'EdgeData> with
+                                member __.Item with get(k2 : 'Node) = g.[(k, k2)]
+                                member __.Keys = g.Neighbours k
+                                member __.Values = seq { for nbr in (g.Neighbours k) -> g.[(k, nbr)] }
+                                member __.ContainsKey k2 = g.HasEdge (k, k2)
+                                member __.TryGetValue(k2, value) =
+                                    if g.HasEdge (k, k2) then value <- g.[(k, k2)]; true
+                                    else false
+                                member __.Count = g.Neighbours k |> Seq.length
+                                member __.GetEnumerator() = kvpSeq.GetEnumerator()
+                                member __.GetEnumerator() = kvpSeq.GetEnumerator() :> System.Collections.IEnumerator
+                                }
+                new AtlasView<'Node, 'EdgeData>(asDict)
+        override g.Item with get(k) = g.GetEdgeData k
 
         interface IGraph<'Node, 'NodeData, 'EdgeData> with
             member g.Adj = g.Adj
@@ -110,17 +125,6 @@ module Graph =
             member g.NewNodeData n = g.NewNodeData n
             member g.NewEdgeData e = g.NewEdgeData e
             member g.IsDirected = g.IsDirected
-            member g.SupportsMultipleParallelEdges = g.SupportsMultipleParallelEdges
-            member g.SupportsSelfLoops  = g.SupportsSelfLoops
-
-        interface IEnumerable<KeyValuePair<'Node, IRODict<'Node, 'EdgeData>>> with
-            member g.GetEnumerator() = g.AsEnumerable().GetEnumerator()
-        
-        interface System.Collections.IEnumerable with
-            member g.GetEnumerator() = upcast g.AsEnumerable().GetEnumerator()
-
-        interface IReadOnlyCollection<KeyValuePair<'Node, IRODict<'Node, 'EdgeData>>> with
-            member g.Count = g.NumberOfNodes
         
         interface IRODict2<'Node, 'Node, 'EdgeData> with
             member g.Item with get(k : 'Node) = upcast g.[k]
@@ -130,6 +134,9 @@ module Graph =
             member g.TryGetValue(k, value) =
                 if g.HasNode k then value <- g.[k]; true
                 else false
+            member g.Count = g.NumberOfNodes
+            member g.GetEnumerator() = g.AsEnumerable().GetEnumerator() :> System.Collections.IEnumerator
+            member g.GetEnumerator() = g.AsEnumerable().GetEnumerator()
 
     [<AbstractClass>]
     type MutableGraphBase<'Node, 'NodeData, 'EdgeData>() =
@@ -211,10 +218,8 @@ module Graph =
 
         default g.RemoveMultiEdgesFrom edges = Seq.iter g.RemoveMultiEdge edges
         
-        interface IMultiGraph<'Node, 'NodeData, 'EdgeData> with
-            member g.Item with get(k : MultiEdge<'Node>) = g.[k]
-
         interface IMutableMultiGraph<'Node, 'NodeData, 'EdgeData> with
+            member g.Item with get(k : MultiEdge<'Node>) = g.[k]
             member g.RemoveMultiEdge e = g.RemoveMultiEdge e
             member g.RemoveMultiEdgesFrom es = g.RemoveMultiEdgesFrom es
 
@@ -228,9 +233,7 @@ module Graph =
 
         default g.RemoveMultiEdgesFrom edges = Seq.fold (fun g e -> g.RemoveMultiEdge e) g edges
         
-        interface IMultiGraph<'Node, 'NodeData, 'EdgeData> with
-            member g.Item with get(k : MultiEdge<'Node>) = g.[k]
-
         interface IImmutableMultiGraph<'Node, 'NodeData, 'EdgeData> with
+            member g.Item with get(k : MultiEdge<'Node>) = g.[k]
             member g.RemoveMultiEdge e = upcast g.RemoveMultiEdge e
             member g.RemoveMultiEdgesFrom es = upcast g.RemoveMultiEdgesFrom es

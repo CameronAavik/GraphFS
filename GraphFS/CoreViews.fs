@@ -43,15 +43,6 @@ module CoreViews =
 
         member private av.AsSeq = Seq.map (fun k -> new KeyValuePair<'K, 'V>(k, av.[k])) av.Keys
 
-        interface IEnumerable<KeyValuePair<'K, 'V>> with
-            member av.GetEnumerator() = av.AsSeq.GetEnumerator()
-
-        interface System.Collections.IEnumerable with
-            member av.GetEnumerator() = upcast av.AsSeq.GetEnumerator()
-
-        interface IReadOnlyCollection<KeyValuePair<'K, 'V>> with
-            member av.Count = av.Count
-
         interface IRODict<'K, 'V> with
             member av.Item with get(k) = av.[k]
             member av.Keys = av.Keys
@@ -62,6 +53,9 @@ module CoreViews =
                     value <- av.[k]
                     true
                 else false
+            member av.Count = av.Count
+            member av.GetEnumerator() = av.AsSeq.GetEnumerator() :> Collections.IEnumerator
+            member av.GetEnumerator() = av.AsSeq.GetEnumerator()
 
     type AdjacencyView<'K1, 'K2, 'V>(d : IRODict2<'K1,'K2, 'V>) =
         inherit AtlasView<'K1, IRODict<'K2, 'V>>(d)
@@ -92,15 +86,6 @@ module CoreViews =
 
         member private ua.AsSeq = Seq.map (fun k -> new KeyValuePair<'K, 'V>(k, ua.[k])) ua.Keys
         
-        interface IEnumerable<KeyValuePair<'K, 'V>> with
-            member ua.GetEnumerator() = ua.AsSeq.GetEnumerator()
-        
-        interface System.Collections.IEnumerable with
-            member ua.GetEnumerator() = upcast ua.AsSeq.GetEnumerator()
-        
-        interface IReadOnlyCollection<KeyValuePair<'K, 'V>> with
-            member ua.Count = ua.Count
-
         interface IRODict<'K, 'V> with
             member ua.Item with get(k) = ua.[k]
             member ua.Keys = ua.Keys
@@ -111,6 +96,9 @@ module CoreViews =
                     value <- ua.[k]
                     true
                 else false
+            member ua.Count = ua.Count
+            member ua.GetEnumerator() = ua.AsSeq.GetEnumerator() :> Collections.IEnumerator
+            member ua.GetEnumerator() = ua.AsSeq.GetEnumerator()
 
     type UnionAdjacency<'K1, 'K2, 'V>(succ: IRODict2<'K1, 'K2, 'V>, pred: IRODict2<'K1, 'K2, 'V>) =
         inherit UnionAtlas<'K1, IRODict<'K2, 'V>>(succ, pred)
