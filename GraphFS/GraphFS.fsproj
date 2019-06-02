@@ -5,10 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Filters.fs" />
-    <Compile Include="CoreViews.fs" />
-    <Compile Include="ReportViews.fs" />
     <Compile Include="Graph.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharpPlus" Version="1.1.0-CI00252" />
   </ItemGroup>
 
 </Project>
