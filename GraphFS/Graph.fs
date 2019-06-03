@@ -143,45 +143,40 @@ module MapHelpers =
     let inline Flatten2 d = Map.toSeq d |> Seq.collect (fun (u, d2) -> Flatten d2 |> Seq.map (fun (v, i) -> (u, v, i)))
     let inline Flatten3 d = Map.toSeq d |> Seq.collect (fun (u, d2) -> Flatten2 d2 |> Seq.map (fun (v, i, e) -> (u, v, i, e)))
 
-module NodeSet =
-    type INodeSet<'T> =
-        abstract member HasNode : 'T -> bool
+module VertexSet =
+    type IVertexSet<'V> =
+        abstract member HasVert : 'V -> bool
 
-    type IFiniteNodeSet<'T> =
-        inherit INodeSet<'T>
-        abstract member Nodes : 'T seq
+    type IFiniteVertexSet<'V> =
+        inherit IVertexSet<'V>
+        abstract member Verts : 'V seq
 
-    type IPersistentNodeSet<'T> =
-        inherit IFiniteNodeSet<'T>
-        abstract member AddNode : 'T -> IPersistentNodeSet<'T>
-        abstract member AddNodes : 'T seq -> IPersistentNodeSet<'T>
-        abstract member RemoveNode : 'T -> IPersistentNodeSet<'T>
-        abstract member RemoveNodes : 'T seq -> IPersistentNodeSet<'T>
-        abstract member AsFrozen : unit -> IFiniteNodeSet<'T>
+    type FrozenVertexSet<'V>(verts : HashSet<'V>) =
+        interface IFiniteVertexSet<'V> with
+            member __.HasVert v = verts.Contains v
+            member __.Verts = upcast verts
+        static member ofSeq (verts : 'V seq) = new FrozenVertexSet<_>(new HashSet<_>(verts))
+        static member empty = new FrozenVertexSet<_>(new HashSet<_>())
 
-    type FrozenNodeSet<'T>(nodes : HashSet<'T>) =
-        interface IFiniteNodeSet<'T> with
-            member __.HasNode n = nodes.Contains n
-            member __.Nodes = upcast nodes
-        static member create (nodes : 'T seq) = new FrozenNodeSet<_>(new HashSet<_>(nodes))
-        static member empty = new FrozenNodeSet<_>(new HashSet<_>())
+    type VertexSet<'V when 'V : comparison>(verts : Set<'V>) =
+        member __.AddVert vert = new VertexSet<_>(verts.Add vert)
+        member __.AddVerts toAdd = new VertexSet<_>(verts + (set toAdd))
+        member __.RemoveVert vert =  new VertexSet<_>(verts.Remove vert)
+        member __.RemoveVerts toRemove = new VertexSet<_>(verts - (set toRemove))
+        member __.Freeze () = FrozenVertexSet.ofSeq verts
+        interface IFiniteVertexSet<'V> with
+            member __.HasVert v = verts.Contains v
+            member __.Verts = upcast verts
+        static member ofSeq (verts : 'V seq) =  new VertexSet<_>(set verts)
+        static member empty =  new VertexSet<_>(Set.empty)
 
-    type NodeSet<'T when 'T : comparison>(nodes : Set<'T>) =
-        member __.AddNode n = new NodeSet<_>(nodes.Add n)
-        member __.AddNodes toAdd = new NodeSet<_>(nodes + (set toAdd))
-        member __.RemoveNode n =  new NodeSet<_>(nodes.Remove n)
-        member __.RemoveNodes toRemove = new NodeSet<_>(nodes - (set toRemove))
-        member __.AsFrozen () = FrozenNodeSet.create nodes
-        interface IPersistentNodeSet<'T> with
-            member __.HasNode n = nodes.Contains n
-            member __.Nodes = upcast nodes
-            member ns.AddNode n = upcast ns.AddNode n
-            member ns.AddNodes toAdd = upcast ns.AddNodes toAdd
-            member ns.RemoveNode n = upcast ns.RemoveNode n
-            member ns.RemoveNodes toRemove = upcast ns.RemoveNodes toRemove
-            member ns.AsFrozen () = upcast ns.AsFrozen ()
-        static member ofSeq (nodes : 'T seq) =  new NodeSet<_>(set nodes)
-        static member empty =  new NodeSet<_>(Set.empty)
+    let inline hasVert vertex (vertexSet : IVertexSet<_>) = vertexSet.HasVert vertex
+    let inline verts (vertexSet : IFiniteVertexSet<_>) = vertexSet.Verts
+    let inline addVert vert vertexSet = (^VS : (member AddVert : 'V -> ^VS) (vertexSet, vert))
+    let inline addVerts verts vertexSet = (^VS : (member AddVerts : 'V seq -> ^VS) (vertexSet, verts))
+    let inline removeVert vert vertexSet = (^VS : (member RemoveVert : 'V -> ^VS) (vertexSet, vert))
+    let inline removeVerts verts vertexSet = (^VS : (member RemoveVerts : 'V seq -> ^VS) (vertexSet, verts))
+    let inline freeze vertexSet = (^VS : (member Freeze : unit -> ^FVS) vertexSet)
 
 module EdgeSet =
     type IEdgeSet<'T> =
@@ -500,74 +495,59 @@ module MultiEdgeSet =
         static member empty = new MultiEdgeSet<_>(Map.empty)
 
 module Graph =
-    open NodeSet
+    open VertexSet
     open EdgeSet
     open MultiEdgeSet
     
-    let inline hasNode n (N : INodeSet<'N>, _) = N.HasNode n
-    let inline nodes (N: IFiniteNodeSet<'N>, _) = N.Nodes
+    let inline hasNode n (N, _) = hasVert n N
+    let inline nodes (N, _) = verts N
 
-    let inline addNode n (N, E) =
-        let newNodes = (^NS : (member AddNode : 'N -> ^NS) (N, n))
-        newNodes, E
-
-    let inline addNodes ns (N, E) =
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, ns))
-        newNodes, E
-
+    let inline addNode n (N, E) = (addVert n N), E
+    let inline addNodes ns (N, E) = (addVerts ns N), E
+    
     let inline removeNode node (N, E) =
-        let newNodes = (^NS : (member RemoveNode : 'N -> ^NS) (N, node))
         let newEdges = (^ES : (member RemoveNode : 'N -> ^ES) (E, node))
-        newNodes, newEdges
+        (removeVert node N), newEdges
 
     let inline removeNodes nodes (N, E) =
-        let newNodes = (^NS : (member RemoveNodes : 'N seq -> ^NS) (N, nodes))
         let newEdges = (^ES : (member RemoveNodes : 'N seq -> ^ES) (E, nodes))
-        newNodes, newEdges
+        (removeVerts nodes N), newEdges
 
     let inline addEdge (u, v) (N, E) =
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, [|u; v|]))
         let newEdges = (^ES : (member AddNeighbour : ('N * 'N) -> ^ES) (E, (u, v)))
-        newNodes, newEdges
+        (addVerts [u; v] N), newEdges
 
     let inline addEdges edges (N, E) =
         let allNodes = edges |> Seq.collect (fun (u, v) -> [| u; v |])
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, allNodes))
         let newEdges = (^ES : (member AddNeighbours : ('N * 'N) seq -> ^ES) (E, edges))
-        newNodes, newEdges
+        (addVerts allNodes N), newEdges
 
     let inline addEdgeWithData (u, v, d) (N, E) =
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, [|u; v|]))
         let newEdges = (^ES : (member AddNeighbour : ('N * 'N * 'E) -> ^ES) (E, (u, v, d)))
-        newNodes, newEdges
+        (addVerts [u; v] N), newEdges
 
     let inline addEdgesWithData edges (N, E) =
         let allNodes = edges |> Seq.collect (fun (u, v, _) -> [| u; v |])
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, allNodes))
         let newEdges = (^ES : (member AddNeighbours : ('N * 'N * 'E) seq -> ^ES) (E, edges))
-        newNodes, newEdges
+        (addVerts allNodes N), newEdges
 
     let inline addMultiEdge (u, v, i) (N, E) =
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, [|u; v|]))
         let newEdges = (^ES : (member AddEdge : ('N * 'N * int) -> ^ES) (E, (u, v, i)))
-        newNodes, newEdges
+        (addVerts [u; v] N), newEdges
 
     let inline addMultiEdges multiEdges (N, E) =
         let allNodes = multiEdges |> Seq.collect (fun (u, v, _) -> [| u; v |])
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, allNodes))
         let newEdges = (^ES : (member AddEdges : ('N * 'N * int) seq -> ^ES) (E, multiEdges))
-        newNodes, newEdges
+        (addVerts allNodes N), newEdges
 
     let inline addMultiEdgeWithData (u, v, i, d) (N, E) =
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, [|u; v|]))
         let newEdges = (^ES : (member AddEdge : ('N * 'N * int * 'E) -> ^ES) (E, (u, v, i, d)))
-        newNodes, newEdges
+        (addVerts [u; v] N), newEdges
 
     let inline addMultiEdgesWithData multiEdges (N, E) =
         let allNodes = multiEdges |> Seq.collect (fun (u, v, _, _) -> [| u; v |])
-        let newNodes = (^NS : (member AddNodes : 'N seq -> ^NS) (N, allNodes))
         let newEdges = (^ES : (member AddEdges : ('N * 'N * int * 'E) seq -> ^ES) (E, multiEdges))
-        newNodes, newEdges
+        (addVerts allNodes N), newEdges
 
     let inline removeEdge edge (N, E) =
         let newEdges = (^ES : (member RemoveNeighbour : ('N * 'N) -> ^ES) (E, edge))
@@ -586,9 +566,8 @@ module Graph =
         N, newEdges
 
     let inline freeze (N, E) =
-        let newNodes = (^NS : (member AsFrozen : unit -> ^FNS) N)
         let newEdges = (^ES : (member AsFrozen : unit -> ^FES) E)
-        newNodes, newEdges
+        (VertexSet.freeze N), newEdges
 
     let inline neighboursWithData n (_, E : IEdgeWithDataSet<'N, 'E>) = E.NeighboursWithData n
     let inline getEdgeData edge (_, E : IEdgeWithDataSet<'N, 'E>) = E.GetNeighbourData edge
