@@ -33,7 +33,7 @@ module DictHelpers =
             ``default``
 
     let inline private _Add f k v d =
-        let d2 = GetOrSetDefault k (new Dictionary<_, _>()) d
+        let d2 = GetOrSetDefault k (new Dictionary<'K, 'V>()) d
         f v d2
     
     let inline Add k v (d : Dictionary<'a, 'b>) = d.[k] <- v
@@ -54,19 +54,19 @@ module DictHelpers =
     let inline AsTupleSeq3 (k1, k2) d = _ApplyOrEmptySeq (AsTupleSeq2 k2) k1 d
 
     let inline FromTupleSeq edges =
-        let d = new Dictionary<_, _>()
+        let d = new Dictionary<'K, 'V>()
         for (u, data) in edges do
             Add u data d
         d
 
     let inline FromTupleSeq2 edges =
-        let d = new Dictionary<_, _>()
+        let d = new Dictionary<'K, 'V>()
         for (u, v, data) in edges do
             Add2 (u, v) data d
         d
 
     let inline FromTupleSeq3 edges =
-        let d = new Dictionary<_, _>()
+        let d = new Dictionary<'K, 'V>()
         for (u, v, i, data) in edges do
             Add3 (u, v, i) data d
         d
@@ -143,6 +143,25 @@ module MapHelpers =
     let inline Flatten2 d = Map.toSeq d |> Seq.collect (fun (u, d2) -> Flatten d2 |> Seq.map (fun (v, i) -> (u, v, i)))
     let inline Flatten3 d = Map.toSeq d |> Seq.collect (fun (u, d2) -> Flatten2 d2 |> Seq.map (fun (v, i, e) -> (u, v, i, e)))
 
+module Edge =
+    let inline edgeToVerts (u, v) = [|u; v|]
+    let inline edgeWithDataToVerts ((u, v), _) = [|u; v|]
+    let inline multiEdgeToVerts (u, v, _) = [|u; v|]
+    let inline multiEdgeWithDataToVerts ((u, v, _), _) = [|u; v|]
+
+    let inline vertsFromEdgeSeq (toVerts : 'a -> 'b array) edges=
+        let vertSet = new HashSet<'b>()
+        for edge in edges do
+            let vertArr = toVerts edge
+            vertSet.Add vertArr.[0] |> ignore
+            vertSet.Add vertArr.[1] |> ignore
+        vertSet
+
+    let inline edgesToVerts edges =  vertsFromEdgeSeq edgeToVerts edges
+    let inline edgesWithDataToVerts edges = vertsFromEdgeSeq edgeWithDataToVerts edges
+    let inline multiEdgesToVerts multiEdges = vertsFromEdgeSeq multiEdgeToVerts multiEdges
+    let inline multiEdgesWithDataToVerts multiEdges = vertsFromEdgeSeq multiEdgeWithDataToVerts multiEdges
+
 module VertexSet =
     type IVertexSet<'V> =
         abstract member HasVert : 'V -> bool
@@ -155,131 +174,131 @@ module VertexSet =
         interface IFiniteVertexSet<'V> with
             member __.HasVert v = verts.Contains v
             member __.Verts = upcast verts
-        static member ofSeq (verts : 'V seq) = new FrozenVertexSet<_>(new HashSet<_>(verts))
-        static member empty = new FrozenVertexSet<_>(new HashSet<_>())
+
+    module FrozenVertexSet =
+        let ofSeq (verts : 'V seq) = new FrozenVertexSet<'V>(new HashSet<'V>(verts))
+        let empty<'V> = new FrozenVertexSet<'V>(new HashSet<'V>())
 
     type VertexSet<'V when 'V : comparison>(verts : Set<'V>) =
-        member __.AddVert vert = new VertexSet<_>(verts.Add vert)
-        member __.AddVerts toAdd = new VertexSet<_>(verts + (set toAdd))
-        member __.RemoveVert vert =  new VertexSet<_>(verts.Remove vert)
-        member __.RemoveVerts toRemove = new VertexSet<_>(verts - (set toRemove))
+        member __.AddVert vert = new VertexSet<'V>(verts.Add vert)
+        member __.AddVerts toAdd = new VertexSet<'V>(verts + (set toAdd))
+        member __.RemoveVert vert =  new VertexSet<'V>(verts.Remove vert)
+        member __.RemoveVerts toRemove = new VertexSet<'V>(verts - (set toRemove))
         member __.Freeze () = FrozenVertexSet.ofSeq verts
         interface IFiniteVertexSet<'V> with
             member __.HasVert v = verts.Contains v
             member __.Verts = upcast verts
-        static member ofSeq (verts : 'V seq) =  new VertexSet<_>(set verts)
-        static member empty =  new VertexSet<_>(Set.empty)
 
-    let inline hasVert vertex (vertexSet : IVertexSet<_>) = vertexSet.HasVert vertex
-    let inline verts (vertexSet : IFiniteVertexSet<_>) = vertexSet.Verts
-    let inline addVert vert vertexSet = (^VS : (member AddVert : 'V -> ^VS) (vertexSet, vert))
-    let inline addVerts verts vertexSet = (^VS : (member AddVerts : 'V seq -> ^VS) (vertexSet, verts))
-    let inline removeVert vert vertexSet = (^VS : (member RemoveVert : 'V -> ^VS) (vertexSet, vert))
-    let inline removeVerts verts vertexSet = (^VS : (member RemoveVerts : 'V seq -> ^VS) (vertexSet, verts))
-    let inline freeze vertexSet = (^VS : (member Freeze : unit -> ^FVS) vertexSet)
+    module VertexSet =
+        let ofSeq (verts : 'V seq) =  new VertexSet<'V>(set verts)
+        let empty<'V when 'V : comparison> =  new VertexSet<'V>(Set.empty)
+
+        let inline hasVert vertex (vertexSet : IVertexSet<'V>) = vertexSet.HasVert vertex
+        let inline verts (vertexSet : IFiniteVertexSet<'V>) = vertexSet.Verts
+        let inline addVert vert vertexSet = (^VS : (member AddVert : 'V -> ^VS) (vertexSet, vert))
+        let inline addVerts verts vertexSet = (^VS : (member AddVerts : 'V seq -> ^VS) (vertexSet, verts))
+        let inline removeVert vert vertexSet = (^VS : (member RemoveVert : 'V -> ^VS) (vertexSet, vert))
+        let inline removeVerts verts vertexSet = (^VS : (member RemoveVerts : 'V seq -> ^VS) (vertexSet, verts))
+        let inline freeze vertexSet = (^VS : (member Freeze : unit -> ^FVS) vertexSet)
 
 module EdgeSet =
-    type IEdgeSet<'T> =
-        abstract member Neighbours : 'T -> 'T seq
-        abstract member HasNeighbour : ('T * 'T) -> bool
+    type IEdgeSet<'V> =
+        abstract member Neighbours : 'V -> 'V seq
+        abstract member HasEdge : ('V * 'V) -> bool
 
-    type IEdgeWithDataSet<'T, 'E> =
-        inherit IEdgeSet<'T>
-        abstract member NeighboursWithData : 'T -> ('T * 'E) seq
-        abstract member GetNeighbourData : ('T * 'T) -> 'E
+    type IEdgeWithDataSet<'V, 'E> =
+        inherit IEdgeSet<'V>
+        abstract member NeighboursWithData : 'V -> ('V * 'E) seq
+        abstract member GetEdgeData : ('V * 'V) -> 'E
 
-    type IPersistentEdgeSet<'T> =
-        inherit IEdgeSet<'T>
-        abstract member RemoveNode : 'T -> IPersistentEdgeSet<'T>
-        abstract member RemoveNodes : 'T seq -> IPersistentEdgeSet<'T>
-        abstract member AddNeighbour : ('T * 'T) -> IPersistentEdgeSet<'T>
-        abstract member AddNeighbours : ('T * 'T) seq -> IPersistentEdgeSet<'T>
-        abstract member RemoveNeighbour : ('T * 'T) -> IPersistentEdgeSet<'T>
-        abstract member RemoveNeighbours : ('T * 'T) seq -> IPersistentEdgeSet<'T>
-        abstract member AsFrozen : unit -> IEdgeSet<'T>
-
-    type IPersistentEdgeWithDataSet<'T, 'E> =
-        inherit IEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNode : 'T -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNodes : 'T seq -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member AddNeighbour : ('T * 'T * 'E) -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member AddNeighbours : ('T * 'T * 'E) seq -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNeighbour : ('T * 'T) -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNeighbours : ('T * 'T) seq -> IPersistentEdgeWithDataSet<'T, 'E>
-        abstract member AsFrozen : unit -> IEdgeWithDataSet<'T, 'E>
-
-    type FrozenEdgeWithDataSet<'T, 'E>(edges : Dictionary<'T, Dictionary<'T, 'E>>) =
-        interface IEdgeWithDataSet<'T, 'E> with
+    type FrozenEdgeWithDataSet<'V, 'E>(edges : Dictionary<'V, Dictionary<'V, 'E>>) =
+        interface IEdgeWithDataSet<'V, 'E> with
             member __.Neighbours n = DictHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = DictHelpers.ContainsKey2 neighbour edges
+            member __.HasEdge neighbour = DictHelpers.ContainsKey2 neighbour edges
             member __.NeighboursWithData n = DictHelpers.AsTupleSeq2 n edges
-            member __.GetNeighbourData neighbour = DictHelpers.GetOrThrow2 neighbour edges
-        static member ofUndirectedSeq edges =
+            member __.GetEdgeData neighbour = DictHelpers.GetOrThrow2 neighbour edges
+
+    module FrozenEdgeWithDataSet =
+        let ofSeq edges = edges |> DictHelpers.FromTupleSeq2 |> FrozenEdgeWithDataSet<'V, 'E>
+        let ofUndirectedSeq edges =
             edges
             |> Seq.filter (fun (a, b, _) -> a <> b)
             |> Seq.map (fun (a, b, d) -> (b, a, d))
             |> Seq.append edges
-            |> FrozenEdgeWithDataSet<'T, 'E>.ofSeq
-        static member ofSeq edges = edges |> DictHelpers.FromTupleSeq2 |> FrozenEdgeWithDataSet<_, _>
-        static member empty = new FrozenEdgeWithDataSet<_, _>(new Dictionary<_,_>())
+            |> ofSeq
+        let empty<'V, 'E when 'V : equality> = new FrozenEdgeWithDataSet<'V, 'E>(new Dictionary<'V, Dictionary<'V, 'E>>())
 
-    type FrozenEdgeSet<'T>(edges : Dictionary<'T, Dictionary<'T, unit>>) =
-        inherit FrozenEdgeWithDataSet<'T, unit>(edges)
-        interface IEdgeSet<'T>
-        static member ofUndirectedSeq edges =
+    type FrozenEdgeSet<'V>(edges : Dictionary<'V, Dictionary<'V, unit>>) =
+        inherit FrozenEdgeWithDataSet<'V, unit>(edges)
+        interface IEdgeSet<'V>
+
+    module FrozenEdgeSet =
+        let ofSeq edges =
+            edges
+            |> Seq.map (fun (u, v) -> (u, v, ()))
+            |> DictHelpers.FromTupleSeq2
+            |> FrozenEdgeSet<'V>
+        let ofUndirectedSeq edges =
             edges
             |> Seq.filter (fun (a, b) -> a <> b)
             |> Seq.map (fun (a, b) -> (b, a))
             |> Seq.append edges
-            |> FrozenEdgeSet<'T>.ofSeq
-        static member ofSeq edges =
-            edges
-            |> Seq.map (fun (u, v) -> (u, v, ()))
-            |> DictHelpers.FromTupleSeq2
-            |> FrozenEdgeSet<_>
-        static member empty = new FrozenEdgeSet<_>(new Dictionary<_,_>())
+            |> ofSeq
+        let empty<'V when 'V : equality> = new FrozenEdgeSet<'V>(new Dictionary<'V, Dictionary<'V, unit>>())
 
-    type EdgeWithDataSet<'T, 'E when 'T : comparison>(edges : Map<'T, Map<'T, 'E>>) =
-        member private __.RemoveNode node = MapHelpers.RemoveFromFirst2Keys node edges |> EdgeWithDataSet<_,_>
-        member private __.AddNeighbour neighbour =
-            let u, v, d = neighbour
-            MapHelpers.Add2 (u, v) d edges |> EdgeWithDataSet<_,_>
-        member private __.RemoveNeighbour neighbour = MapHelpers.Remove2 neighbour edges |> EdgeWithDataSet<_,_>
-        interface IPersistentEdgeWithDataSet<'T, 'E> with
+    type EdgeWithDataSet<'V, 'E when 'V : comparison>(edges : Map<'V, Map<'V, 'E>>) =
+        member __.RemoveVert vert = MapHelpers.RemoveFromFirst2Keys vert edges |> EdgeWithDataSet<'V, 'E>
+        member es.RemoveVerts verts = (Seq.fold (fun (es : EdgeWithDataSet<'V, 'E>) n -> es.RemoveVert n) es verts)
+        member __.AddEdgeWithData edgeWithData =
+            let edge, data = edgeWithData
+            MapHelpers.Add2 edge data edges |> EdgeWithDataSet<'V, 'E>
+        member es.AddEdgesWithData edges = (Seq.fold (fun (es : EdgeWithDataSet<'V, 'E>) (edge, data) -> es.AddEdgeWithData (edge, data)) es edges)
+        member __.RemoveEdge edge = MapHelpers.Remove2 edge edges |> EdgeWithDataSet<'V, 'E>
+        member es.RemoveEdges neighbours = (Seq.fold (fun (es : EdgeWithDataSet<'V, 'E>) n -> es.RemoveEdge n) es neighbours)
+        member __.Freeze () = (MapHelpers.Flatten2 edges |> FrozenEdgeWithDataSet.ofSeq)
+        interface IEdgeWithDataSet<'V, 'E> with
             member __.Neighbours n = MapHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = MapHelpers.ContainsKey2 neighbour edges
-            member es.RemoveNode node = upcast es.RemoveNode node
-            member es.RemoveNodes nodes = upcast (Seq.fold (fun (es : EdgeWithDataSet<'T, 'E>) n -> es.RemoveNode n) es nodes)
-            member es.AddNeighbour neighbour = upcast es.AddNeighbour neighbour
-            member es.AddNeighbours neighbours = upcast (Seq.fold (fun (es : EdgeWithDataSet<'T, 'E>) n -> es.AddNeighbour n) es neighbours)
-            member es.RemoveNeighbour neighbour = upcast es.RemoveNeighbour neighbour
-            member es.RemoveNeighbours neighbours = upcast (Seq.fold (fun (es : EdgeWithDataSet<'T, 'E>) n -> es.RemoveNeighbour n) es neighbours)
-            member __.AsFrozen () = upcast (MapHelpers.Flatten2 edges |> FrozenEdgeWithDataSet<_,_>.ofSeq)
+            member __.HasEdge neighbour = MapHelpers.ContainsKey2 neighbour edges
             member __.NeighboursWithData n = MapHelpers.AsTupleSeq2 n edges
-            member __.GetNeighbourData neighbour = MapHelpers.GetOrThrow2 neighbour edges
-        static member ofSeq edges = edges |> MapHelpers.FromTupleSeq2 |> EdgeWithDataSet<_,_>
-        static member empty = new EdgeWithDataSet<_, _>(Map.empty)
+            member __.GetEdgeData neighbour = MapHelpers.GetOrThrow2 neighbour edges
 
-    type EdgeSet<'T when 'T : comparison>(edges : Map<'T, Map<'T, unit>>) =
-        member private __.RemoveNode node = MapHelpers.RemoveFromFirst2Keys node edges |> EdgeSet<_>
-        member private __.AddNeighbour neighbour = MapHelpers.Add2 neighbour () edges |> EdgeSet<_>
-        member private __.RemoveNeighbour neighbour = MapHelpers.Remove2 neighbour edges |> EdgeSet<_>
-        interface IPersistentEdgeSet<'T> with
+    module EdgeWithDataSet =
+        let ofSeq edges = edges |> MapHelpers.FromTupleSeq2 |> EdgeWithDataSet<'V, 'E>
+        let empty<'V, 'E when 'V : comparison> = new EdgeWithDataSet<'V, 'E>(Map.empty)
+
+    type EdgeSet<'V when 'V : comparison>(edges : Map<'V, Map<'V, unit>>) =
+        member __.RemoveVert vert = MapHelpers.RemoveFromFirst2Keys vert edges |> EdgeSet<'V>
+        member es.RemoveVerts verts = (Seq.fold (fun (es : EdgeSet<'V>) n -> es.RemoveVert n) es verts)
+        member __.AddEdge edge = MapHelpers.Add2 edge () edges |> EdgeSet<'V>
+        member es.AddEdges edge = Seq.fold (fun (es : EdgeSet<'V>) n -> es.AddEdge n) es edge
+        member __.RemoveEdge neighbour = MapHelpers.Remove2 neighbour edges |> EdgeSet<'V>
+        member es.RemoveEdges neighbours = Seq.fold (fun (es : EdgeSet<'V>) n -> es.RemoveEdge n) es neighbours
+        member __.Freeze () = MapHelpers.Flatten2 edges |> Seq.map (fun (u, v, _) -> (u, v)) |> FrozenEdgeSet.ofSeq
+        interface IEdgeSet<'V> with
             member __.Neighbours n = MapHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = MapHelpers.ContainsKey2 neighbour edges
-            member es.RemoveNode node = upcast es.RemoveNode node
-            member es.RemoveNodes nodes = upcast (Seq.fold (fun (es : EdgeSet<_>) n -> es.RemoveNode n) es nodes)
-            member es.AddNeighbour neighbour = upcast (es.AddNeighbour neighbour)
-            member es.AddNeighbours neighbours = upcast (Seq.fold (fun (es : EdgeSet<_>) n -> es.AddNeighbour n) es neighbours)
-            member es.RemoveNeighbour neighbour = upcast es.RemoveNeighbour neighbour
-            member es.RemoveNeighbours neighbours = upcast (Seq.fold (fun (es : EdgeSet<_>) n -> es.RemoveNeighbour n) es neighbours)
-            member __.AsFrozen () = upcast (MapHelpers.Flatten2 edges |> FrozenEdgeSet<_>.ofSeq)
-        static member ofSeq edges =
+            member __.HasEdge neighbour = MapHelpers.ContainsKey2 neighbour edges
+
+    module EdgeSet =
+        let ofSeq edges =
             edges
             |> Seq.map (fun (u, v) -> (u, v, ()))
             |> MapHelpers.FromTupleSeq2
-            |> EdgeSet<_>
-        static member empty = new EdgeSet<_>(Map.empty)
+            |> EdgeSet<'V>
+        let empty<'V when 'V : comparison> = new EdgeSet<'V>(Map.empty)
+
+        let inline neighbours vertex (edgeSet : IEdgeSet<'V>) = edgeSet.Neighbours vertex
+        let inline hasEdge edge (edgeSet : IEdgeSet<'V>) = edgeSet.HasEdge edge
+        let inline neighboursWithData vertex (edgeSet : IEdgeWithDataSet<'V, 'E>) = edgeSet.NeighboursWithData vertex
+        let inline getEdgeData edge (edgeSet : IEdgeWithDataSet<'V, 'E>) = edgeSet.GetEdgeData edge
+        let inline removeVert vert edgeSet = (^ES : (member RemoveVert : 'V -> ^ES) (edgeSet, vert))
+        let inline removeVerts verts edgeSet = (^ES : (member RemoveVerts : 'V seq -> ^ES) (edgeSet, verts))
+        let inline addEdge edge edgeSet = (^ES : (member AddEdge : ('V * 'V) -> ^ES) (edgeSet, edge))
+        let inline addEdges edges edgeSet = (^ES : (member AddEdge : ('V * 'V) seq -> ^ES) (edgeSet, edges))
+        let inline addEdgeWithData edge data edgeSet = (^ES : (member AddEdgeWithData : (('V * 'V) * 'E) -> ^ES) (edgeSet, (edge, data)))
+        let inline addEdgesWithData edges edgeSet = (^ES : (member AddEdgesWithData : (('V * 'V) * 'E) seq -> ^ES) (edgeSet, edges))
+        let inline removeEdge edge edgeSet = (^ES : (member RemoveEdge : ('V * 'V) -> ^ES) (edgeSet, edge))
+        let inline removeEdges edge edgeSet = (^ES : (member RemoveEdges : ('V * 'V) -> ^ES) (edgeSet, edge))
+        let inline freeze edgeSet = (^ES : (member Freeze : unit -> ^FES) edgeSet)
 
 module MultiEdgeSet =
     open EdgeSet
@@ -287,294 +306,228 @@ module MultiEdgeSet =
     type IMultiEdgeSet<'T> =
         inherit IEdgeSet<'T>
         abstract member Edges : 'T -> ('T * int) seq
-        abstract member HasEdge : ('T * 'T * int) -> bool
-        abstract member EdgeCount : ('T * 'T) -> int
+        abstract member HasMultiEdge : ('T * 'T * int) -> bool
+        abstract member ParallelEdgeCount : ('T * 'T) -> int
 
     type IMultiEdgeWithDataSet<'T, 'E> =
         inherit IMultiEdgeSet<'T>
         inherit IEdgeWithDataSet<'T, IReadOnlyDictionary<int, 'E>>
-        abstract member EdgesWithData : 'T -> ('T * int * 'E) seq
-        abstract member GetEdgeData : ('T * 'T * int) -> 'E
+        abstract member MultiEdgesWithData : 'T -> ('T * int * 'E) seq
+        abstract member GetMultiEdgeData : ('T * 'T * int) -> 'E
 
-    type IPersistentMultiEdgeSet<'T> =
-        inherit IMultiEdgeSet<'T>
-        abstract member RemoveNode : 'T -> IPersistentMultiEdgeSet<'T>
-        abstract member RemoveNodes : 'T seq -> IPersistentMultiEdgeSet<'T>
-        abstract member AddNeighbour : ('T * 'T) -> IPersistentMultiEdgeSet<'T>
-        abstract member AddNeighbours : ('T * 'T) seq -> IPersistentMultiEdgeSet<'T>
-        abstract member RemoveNeighbour : ('T * 'T) -> IPersistentMultiEdgeSet<'T>
-        abstract member RemoveNeighbours : ('T * 'T) seq -> IPersistentMultiEdgeSet<'T>
-        abstract member AddEdge : ('T * 'T * int) -> IPersistentMultiEdgeSet<'T>
-        abstract member AddEdges : ('T * 'T * int) seq -> IPersistentMultiEdgeSet<'T>
-        abstract member RemoveEdge : ('T * 'T * int) -> IPersistentMultiEdgeSet<'T>
-        abstract member RemoveEdges : ('T * 'T * int) seq -> IPersistentMultiEdgeSet<'T>
-        abstract member AsFrozen : unit -> IMultiEdgeSet<'T>
-
-    type IPersistentMultiEdgeWithDataSet<'T, 'E> =
-        inherit IMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNode : 'T -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNodes : 'T seq -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member AddNeighbour : ('T * 'T * 'E) -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member AddNeighbours : ('T * 'T * 'E) seq -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNeighbour : ('T * 'T) -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveNeighbours : ('T * 'T) seq -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member AddEdge : ('T * 'T * int * 'E) -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member AddEdges : ('T * 'T * int * 'E) seq -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveEdge : ('T * 'T * int) -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member RemoveEdges : ('T * 'T * int) seq -> IPersistentMultiEdgeWithDataSet<'T, 'E>
-        abstract member AsFrozen : unit -> IMultiEdgeWithDataSet<'T, 'E>
-
-    type FrozenMultiEdgeWithDataSet<'T, 'E>(edges : Dictionary<'T, Dictionary<'T, Dictionary<int, 'E>>>) =
-        interface IMultiEdgeWithDataSet<'T, 'E> with
+    type FrozenMultiEdgeWithDataSet<'V, 'E>(edges : Dictionary<'V, Dictionary<'V, Dictionary<int, 'E>>>) =
+        interface IMultiEdgeWithDataSet<'V, 'E> with
             member __.Neighbours n = DictHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = DictHelpers.ContainsKey2 neighbour edges
+            member __.HasEdge neighbour = DictHelpers.ContainsKey2 neighbour edges
             member __.Edges n = DictHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> Seq.map (fun i -> (k, i)) d.Keys)
-            member __.HasEdge e = DictHelpers.ContainsKey3 e edges
-            member __.EdgeCount n =
+            member __.HasMultiEdge e = DictHelpers.ContainsKey3 e edges
+            member __.ParallelEdgeCount n =
                 match DictHelpers.GetOrDefault2 n null edges with
                 | null -> 0
                 | d -> d.Count
             member __.NeighboursWithData n = DictHelpers.AsTupleSeq2 n edges |> Seq.map (fun (k, v) -> (k, upcast v))
-            member __.GetNeighbourData n = upcast (DictHelpers.GetOrThrow2 n edges)
-            member __.EdgesWithData n = DictHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Seq.map (fun kvp -> (k, kvp.Key, kvp.Value)))
-            member __.GetEdgeData e = DictHelpers.GetOrThrow3 e edges
-        static member private edgesToMultiEdges edges =
+            member __.GetEdgeData n = upcast (DictHelpers.GetOrThrow2 n edges)
+            member __.MultiEdgesWithData n = DictHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Seq.map (fun kvp -> (k, kvp.Key, kvp.Value)))
+            member __.GetMultiEdgeData e = DictHelpers.GetOrThrow3 e edges
+
+    module FrozenMultiEdgeWithDataSet =
+        let private edgesToMultiEdges edges =
             edges
             |> Seq.groupBy (fun (u, v, _) -> (u, v))
             |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i (_, _, d) -> (u, v, i, d)) s)
-        static member ofUndirectedEdgeSeq edges =
-            edges
-            |> FrozenMultiEdgeWithDataSet<_, _>.edgesToMultiEdges
-            |> FrozenMultiEdgeWithDataSet<_, _>.ofUndirectedSeq
-        static member ofEdgeSeq (edges : ('a * 'a * 'b) seq) =
-            edges
-            |> FrozenMultiEdgeWithDataSet<_, _>.edgesToMultiEdges
-            |> FrozenMultiEdgeWithDataSet<_, _>.ofSeq
-        static member ofUndirectedSeq multiEdges =
+        let ofSeq (multiEdges : ('V * 'V * int * 'E) seq) = multiEdges |> DictHelpers.FromTupleSeq3 |> FrozenMultiEdgeWithDataSet<'V, 'E>
+        let ofEdgeSeq (edges : ('V * 'V * 'E) seq) = edges |> edgesToMultiEdges |> ofSeq
+        let ofUndirectedSeq multiEdges =
             multiEdges
             |> Seq.filter (fun (a, b, _, _) -> a <> b)
             |> Seq.map (fun (a, b, i, d) -> (b, a, i, d))
             |> Seq.append multiEdges
-            |> FrozenMultiEdgeWithDataSet<_, _>.ofSeq
-        static member ofSeq (multiEdges : ('a * 'a * int * 'b) seq) = multiEdges |> DictHelpers.FromTupleSeq3 |> FrozenMultiEdgeWithDataSet<_, _>
-        static member empty = new FrozenMultiEdgeWithDataSet<_, _>(new Dictionary<_,_>())
+            |> ofSeq
+        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
+        let empty<'V, 'E when 'V : equality> = new FrozenMultiEdgeWithDataSet<'V, 'E>(new Dictionary<_,_>())
+        
+    type FrozenMultiEdgeSet<'V>(edges : Dictionary<'V, Dictionary<'V, Dictionary<int, unit>>>) =
+        inherit FrozenMultiEdgeWithDataSet<'V, unit>(edges)
+        interface IMultiEdgeSet<'V>
 
-    type FrozenMultiEdgeSet<'T>(edges : Dictionary<'T, Dictionary<'T, Dictionary<int, unit>>>) =
-        inherit FrozenMultiEdgeWithDataSet<'T, unit>(edges)
-        interface IMultiEdgeSet<'T>
-        static member private edgesToMultiEdges edges =
+    module FrozenMultiEdgeSet =
+        let private edgesToMultiEdges edges =
             edges
             |> Seq.groupBy id
             |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
-        static member ofUndirectedEdgeSeq edges =
-            edges
-            |> FrozenMultiEdgeSet<_>.edgesToMultiEdges
-            |> FrozenMultiEdgeSet<_>.ofUndirectedSeq
-        static member ofEdgeSeq (edges : ('a * 'a) seq) =
-            edges
-            |> FrozenMultiEdgeSet<_>.edgesToMultiEdges
-            |> FrozenMultiEdgeSet<_>.ofSeq
-        static member ofUndirectedSeq multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _) -> a <> b)
-            |> Seq.map (fun (a, b, i) -> (b, a, i))
-            |> Seq.append multiEdges
-            |> FrozenMultiEdgeSet<'T>.ofSeq
-        static member ofSeq (multiEdges : ('a * 'a * int) seq) =
+        let ofSeq (multiEdges : ('V * 'V * int) seq) =
             multiEdges
             |> Seq.map (fun (u, v, i) -> (u, v, i, ()))
             |> DictHelpers.FromTupleSeq3
-            |> FrozenMultiEdgeWithDataSet<_, _>
-
-    type MultiEdgeWithDataSet<'T, 'E when 'T : comparison>(edges : Map<'T, Map<'T, Map<int, 'E>>>) =
-        member private __.RemoveNode node = MapHelpers.RemoveFromFirst2Keys node edges |> MultiEdgeWithDataSet<_,_>
-        member private __.AddNeighbour neighbour =
-            let u, v, d = neighbour
-            let indexes = MapHelpers.Keys3 (u, v) edges
-            let nextIndex = if Seq.isEmpty indexes then 0 else (Seq.max indexes) + 1
-            MapHelpers.Add3 (u, v, nextIndex) d edges |> MultiEdgeWithDataSet<_,_>
-        member private __.RemoveNeighbour neighbour = MapHelpers.Remove2 neighbour edges |> MultiEdgeWithDataSet<_,_>
-        member private __.AddEdge edge =
-            let u, v, i, d = edge
-            MapHelpers.Add3 (u, v, i) d edges |> MultiEdgeWithDataSet<_,_>
-        member private __.RemoveEdge edge = MapHelpers.Remove3 edge edges |> MultiEdgeWithDataSet<_,_>
-        interface IPersistentMultiEdgeWithDataSet<'T, 'E> with
-            member __.Neighbours n = MapHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = MapHelpers.ContainsKey2 neighbour edges
-            member __.Edges n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Map.toSeq |> Seq.map (fun (i, _) -> (k, i)))
-            member __.HasEdge e = MapHelpers.ContainsKey3 e edges
-            member __.EdgeCount n = (MapHelpers.GetOrDefault2 n Map.empty edges).Count
-            member __.NeighboursWithData n = MapHelpers.AsTupleSeq2 n edges |> Seq.map (fun (k, v) -> (k, upcast v))
-            member __.GetNeighbourData n = upcast (MapHelpers.GetOrThrow2 n edges)
-            member __.EdgesWithData n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Seq.map (fun kvp -> (k, kvp.Key, kvp.Value)))
-            member __.GetEdgeData e = MapHelpers.GetOrThrow3 e edges
-            member es.RemoveNode node = upcast es.RemoveNode node
-            member es.RemoveNodes nodes = upcast (Seq.fold (fun (es : MultiEdgeWithDataSet<'T, 'E>) n -> es.RemoveNode n) es nodes)
-            member es.AddNeighbour neighbour = upcast es.AddNeighbour neighbour
-            member es.AddNeighbours neighbours = upcast (Seq.fold (fun (es : MultiEdgeWithDataSet<'T, 'E>) n -> es.AddNeighbour n) es neighbours)
-            member es.RemoveNeighbour neighbour = upcast es.RemoveNeighbour neighbour
-            member es.RemoveNeighbours neighbours = upcast (Seq.fold (fun (es : MultiEdgeWithDataSet<'T, 'E>) n -> es.RemoveNeighbour n) es neighbours)
-            member es.AddEdge edge = upcast es.AddEdge edge
-            member es.AddEdges edges = upcast (Seq.fold (fun (es : MultiEdgeWithDataSet<_, _>) n -> es.AddEdge n) es edges)
-            member es.RemoveEdge edge = upcast es.RemoveEdge edge
-            member es.RemoveEdges edges = upcast (Seq.fold (fun (es : MultiEdgeWithDataSet<_, _>) n -> es.RemoveEdge n) es edges)
-            member __.AsFrozen () = upcast (MapHelpers.Flatten3 edges |> FrozenMultiEdgeWithDataSet<_, _>.ofSeq)
-        static member private edgesToMultiEdges edges =
-            edges
-            |> Seq.groupBy id
-            |> Seq.collect (fun ((u, v, d), s) -> Seq.mapi (fun i _ -> (u, v, i, d)) s)
-        static member createU edges =
-            edges
-            |> MultiEdgeWithDataSet<_, _>.edgesToMultiEdges
-            |> MultiEdgeWithDataSet<_, _>.createU
-        static member create (edges : ('a * 'a * 'b) seq) =
-            edges
-            |> MultiEdgeWithDataSet<_, _>.edgesToMultiEdges
-            |> MultiEdgeWithDataSet<_, _>.create
-        static member createU multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _, _) -> a <> b)
-            |> Seq.map (fun (a, b, i, d) -> (b, a, i, d))
-            |> Seq.append multiEdges
-            |> MultiEdgeWithDataSet<_, _>.create
-        static member create (multiEdges : ('a * 'a * int * 'b) seq) = multiEdges |> MapHelpers.FromTupleSeq3 |> MultiEdgeWithDataSet<_, _>
-        static member empty = new MultiEdgeWithDataSet<_, _>(Map.empty)
-
-    type MultiEdgeSet<'T when 'T : comparison>(edges : Map<'T, Map<'T, Map<int, unit>>>) =
-        member private __.RemoveNode node = MapHelpers.RemoveFromFirst2Keys node edges |> MultiEdgeSet<_>
-        member private __.AddNeighbour neighbour =
-            let u, v = neighbour
-            let indexes = MapHelpers.Keys3 (u, v) edges
-            let nextIndex = if Seq.isEmpty indexes then 0 else (Seq.max indexes) + 1
-            MapHelpers.Add3 (u, v, nextIndex) () edges |> MultiEdgeSet<_>
-        member private __.RemoveNeighbour neighbour = MapHelpers.Remove2 neighbour edges |> MultiEdgeSet<_>
-        member private __.AddEdge edge =
-            let u, v, i = edge
-            MapHelpers.Add3 (u, v, i) () edges |> MultiEdgeSet<_>
-        member private __.RemoveEdge edge = MapHelpers.Remove3 edge edges |> MultiEdgeSet<_>
-        interface IPersistentMultiEdgeSet<'T> with
-            member __.Neighbours n = MapHelpers.Keys2 n edges
-            member __.HasNeighbour neighbour = MapHelpers.ContainsKey2 neighbour edges
-            member __.Edges n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Map.toSeq |> Seq.map (fun (i, _) -> (k, i)))
-            member __.HasEdge e = MapHelpers.ContainsKey3 e edges
-            member __.EdgeCount n = (MapHelpers.GetOrDefault2 n Map.empty edges).Count
-            member es.RemoveNode node = upcast es.RemoveNode node
-            member es.RemoveNodes nodes = upcast (Seq.fold (fun (es : MultiEdgeSet<_>) n -> es.RemoveNode n) es nodes)
-            member es.AddNeighbour neighbour = upcast es.AddNeighbour neighbour
-            member es.AddNeighbours neighbours = upcast (Seq.fold (fun (es : MultiEdgeSet<_>) n -> es.AddNeighbour n) es neighbours)
-            member es.RemoveNeighbour neighbour = upcast es.RemoveNeighbour neighbour
-            member es.RemoveNeighbours neighbours = upcast (Seq.fold (fun (es : MultiEdgeSet<_>) n -> es.RemoveNeighbour n) es neighbours)
-            member es.AddEdge edge = upcast es.AddEdge edge
-            member es.AddEdges edges = upcast (Seq.fold (fun (es : MultiEdgeSet<_>) n -> es.AddEdge n) es edges)
-            member es.RemoveEdge edge = upcast es.RemoveEdge edge
-            member es.RemoveEdges edges = upcast (Seq.fold (fun (es : MultiEdgeSet<_>) n -> es.RemoveEdge n) es edges)
-            member __.AsFrozen () = upcast (MapHelpers.Flatten3 edges |> Seq.map (fun (u, v, i, _) -> (u, v, i))  |> FrozenMultiEdgeSet<_>.ofSeq)
-        static member private edgesToMultiEdges edges =
-            edges
-            |> Seq.groupBy id
-            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
-        static member createU edges =
-            edges
-            |> MultiEdgeSet<_>.edgesToMultiEdges
-            |> MultiEdgeSet<_>.createU
-        static member create (edges : ('a * 'a) seq) =
-            edges
-            |> MultiEdgeSet<_>.edgesToMultiEdges
-            |> MultiEdgeSet<_>.create
-        static member createU multiEdges =
+            |> FrozenMultiEdgeSet<'V>
+        let ofEdgeSeq (edges : ('V * 'V) seq) = edges |> edgesToMultiEdges |> ofSeq
+        let ofUndirectedSeq multiEdges =
             multiEdges
             |> Seq.filter (fun (a, b, _) -> a <> b)
             |> Seq.map (fun (a, b, i) -> (b, a, i))
             |> Seq.append multiEdges
-            |> MultiEdgeSet<_>.create
-        static member create (multiEdges : ('a * 'a * int) seq) = 
+            |> ofSeq
+        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
+        let empty<'V when 'V : equality> = new FrozenMultiEdgeSet<'V>(new Dictionary<_,_>())
+
+    type MultiEdgeWithDataSet<'V, 'E when 'V : comparison>(edges : Map<'V, Map<'V, Map<int, 'E>>>) =
+        member __.RemoveVert vert = MapHelpers.RemoveFromFirst2Keys vert edges |> MultiEdgeWithDataSet<'V, 'E>
+        member es.RemoveVerts verts = Seq.fold (fun (es : MultiEdgeWithDataSet<'V, 'E>) n -> es.RemoveVert n) es verts
+        member __.AddEdgeWithData edgeWithData =
+            let ((u, v), d) = edgeWithData
+            let indexes = MapHelpers.Keys3 (u, v) edges
+            let nextIndex = if Seq.isEmpty indexes then 0 else (Seq.max indexes) + 1
+            MapHelpers.Add3 (u, v, nextIndex) d edges |> MultiEdgeWithDataSet<'V, 'E>
+        member es.AddEdgesWithData edges = Seq.fold (fun (es : MultiEdgeWithDataSet<'V, 'E>) ((u, v), d) -> es.AddEdgeWithData ((u, v), d)) es edges
+        member __.RemoveEdge edge = MapHelpers.Remove2 edge edges |> MultiEdgeWithDataSet<'V, 'E>
+        member es.RemoveEdges edges = Seq.fold (fun (es : MultiEdgeWithDataSet<'V, 'E>) n -> es.RemoveEdge n) es edges
+        member __.AddMultiEdgeWithData multiEdgeWithData =
+            let multiEdge, data = multiEdgeWithData
+            MapHelpers.Add3 multiEdge data edges |> MultiEdgeWithDataSet<'V, 'E>
+        member es.AddMultiEdgesWithData multiEdges = Seq.fold (fun (es : MultiEdgeWithDataSet<'V, 'E>) (multiEdge, data) -> es.AddMultiEdgeWithData (multiEdge, data)) es multiEdges
+        member __.RemoveMultiEdge multiEdge = MapHelpers.Remove3 multiEdge edges |> MultiEdgeWithDataSet<'V, 'E>
+        member es.RemoveMultiEdges multiEdges = Seq.fold (fun (es : MultiEdgeWithDataSet<'V, 'E>) n -> es.RemoveMultiEdge n) es multiEdges
+        member __.Freeze () = MapHelpers.Flatten3 edges |> FrozenMultiEdgeWithDataSet.ofSeq
+        interface IMultiEdgeWithDataSet<'V, 'E> with
+            member __.Neighbours n = MapHelpers.Keys2 n edges
+            member __.HasEdge neighbour = MapHelpers.ContainsKey2 neighbour edges
+            member __.Edges n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Map.toSeq |> Seq.map (fun (i, _) -> (k, i)))
+            member __.HasMultiEdge e = MapHelpers.ContainsKey3 e edges
+            member __.ParallelEdgeCount n = (MapHelpers.GetOrDefault2 n Map.empty edges).Count
+            member __.NeighboursWithData n = MapHelpers.AsTupleSeq2 n edges |> Seq.map (fun (k, v) -> (k, upcast v))
+            member __.GetEdgeData n = upcast (MapHelpers.GetOrThrow2 n edges)
+            member __.MultiEdgesWithData n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Seq.map (fun kvp -> (k, kvp.Key, kvp.Value)))
+            member __.GetMultiEdgeData e = MapHelpers.GetOrThrow3 e edges
+
+    module MultiEdgeWithDataSet =
+        let private edgesToMultiEdges edges =
+            edges
+            |> Seq.groupBy (fun (u, v, _) -> (u, v))
+            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i (_, _, d) -> (u, v, i, d)) s)
+        let ofSeq multiEdges = multiEdges |> MapHelpers.FromTupleSeq3 |> MultiEdgeWithDataSet<'V, 'E>
+        let ofEdgeSeq edges = edges |> edgesToMultiEdges |> ofSeq
+        let ofUndirectedSeq multiEdges =
+            multiEdges
+            |> Seq.filter (fun (a, b, _, _) -> a <> b)
+            |> Seq.map (fun (a, b, i, d) -> (b, a, i, d))
+            |> Seq.append multiEdges
+            |> ofSeq
+        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
+        let empty<'V, 'E when 'V : comparison> = new MultiEdgeWithDataSet<'V, 'E>(Map.empty)
+        
+    type MultiEdgeSet<'V when 'V : comparison>(edges : Map<'V, Map<'V, Map<int, unit>>>) =
+        member __.RemoveVert vert = MapHelpers.RemoveFromFirst2Keys vert edges |> MultiEdgeSet<'V>
+        member es.RemoveVerts verts = (Seq.fold (fun (es : MultiEdgeSet<'V>) n -> es.RemoveVert n) es verts)
+        member __.AddEdge edge = 
+            let u, v = edge
+            let indexes = MapHelpers.Keys3 (u, v) edges
+            let nextIndex = if Seq.isEmpty indexes then 0 else (Seq.max indexes) + 1
+            MapHelpers.Add3 (u, v, nextIndex) () edges |> MultiEdgeSet<'V>
+        member es.AddEdges edges = (Seq.fold (fun (es : MultiEdgeSet<'V>) n -> es.AddEdge n) es edges)
+        member __.RemoveEdge edge = MapHelpers.Remove2 edge edges |> MultiEdgeSet<'V>
+        member es.RemoveEdges edges = (Seq.fold (fun (es : MultiEdgeSet<'V>) n -> es.RemoveEdges n) es edges)
+        member __.AddMultiEdge multiEdge = MapHelpers.Add3 multiEdge () edges |> MultiEdgeSet<'V>
+        member es.AddMultiEdges edges = (Seq.fold (fun (es : MultiEdgeSet<'V>) n -> es.AddMultiEdge n) es edges)
+        member __.RemoveMultiEdge edge = MapHelpers.Remove3 edge edges |> MultiEdgeSet<'V>
+        member es.RemoveMultiEdges edges = (Seq.fold (fun (es : MultiEdgeSet<'V>) n -> es.RemoveEdge n) es edges)
+        member __.Freeze () = (MapHelpers.Flatten3 edges |> Seq.map (fun (u, v, i, _) -> (u, v, i))  |> FrozenMultiEdgeSet.ofSeq)
+        interface IMultiEdgeSet<'V> with
+            member __.Neighbours n = MapHelpers.Keys2 n edges
+            member __.HasEdge neighbour = MapHelpers.ContainsKey2 neighbour edges
+            member __.Edges n = MapHelpers.AsTupleSeq2 n edges |> Seq.collect (fun (k, d) -> d |> Map.toSeq |> Seq.map (fun (i, _) -> (k, i)))
+            member __.HasMultiEdge e = MapHelpers.ContainsKey3 e edges
+            member __.ParallelEdgeCount n = (MapHelpers.GetOrDefault2 n Map.empty edges).Count
+
+    module MultiEdgeSet =
+        let private edgesToMultiEdges edges =
+            edges
+            |> Seq.groupBy id
+            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
+        let ofSeq (multiEdges : ('V * 'V * int) seq) = 
             multiEdges
             |> Seq.map (fun (u, v, i) -> (u, v, i, ()))
             |> MapHelpers.FromTupleSeq3
-            |> MultiEdgeSet<_>
-        static member empty = new MultiEdgeSet<_>(Map.empty)
+            |> MultiEdgeSet<'V>
+        let ofEdgeSeq (edges : ('V * 'V) seq) = edges |> edgesToMultiEdges |> ofSeq
+        let ofUndirectedSeq multiEdges =
+            multiEdges
+            |> Seq.filter (fun (a, b, _) -> a <> b)
+            |> Seq.map (fun (a, b, i) -> (b, a, i))
+            |> Seq.append multiEdges
+            |> ofSeq
+        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
+        let empty<'V when 'V : comparison> = new MultiEdgeSet<'V>(Map.empty)
+        
+        let inline edges vertex (edgeSet : IMultiEdgeSet<'V>) = edgeSet.Edges vertex
+        let inline hasMultiEdge multiEdge (edgeSet : IMultiEdgeSet<'V>) = edgeSet.HasMultiEdge multiEdge
+        let inline parallelEdgeCount edge (edgeSet : IMultiEdgeSet<'V>) = edgeSet.ParallelEdgeCount edge
+        let inline multiEdgesWithData vertex (edgeSet : IMultiEdgeWithDataSet<'V, 'E>) = edgeSet.MultiEdgesWithData vertex
+        let inline getMultiEdgeData multiEdge (edgeSet : IMultiEdgeWithDataSet<'V, 'E>) = edgeSet.GetMultiEdgeData multiEdge
+
+        let inline addMultiEdge edge edgeSet = (^ES : (member AddMultiEdge : ('V * 'V * int) -> ^ES) (edgeSet, edge))
+        let inline addMultiEdges edges edgeSet = (^ES : (member AddMultiEdge : ('V * 'V * int) seq -> ^ES) (edgeSet, edges))
+        let inline addMultiEdgeWithData edge data edgeSet = (^ES : (member AddMultiEdgeWithData : (('V * 'V * int) * 'E) -> ^ES) (edgeSet, (edge, data)))
+        let inline addMultiEdgesWithData edges edgeSet = (^ES : (member AddMultiEdgesWithData : (('V * 'V * int) * 'E) seq -> ^ES) (edgeSet, edges))
+        let inline removeMultiEdge edge edgeSet = (^ES : (member RemoveMultiEdge : ('V * 'V * int) -> ^ES) (edgeSet, edge))
+        let inline removeMultiEdges edge edgeSet = (^ES : (member RemoveMultiEdges : ('V * 'V * int) -> ^ES) (edgeSet, edge))
 
 module Graph =
     open VertexSet
     open EdgeSet
     open MultiEdgeSet
-    
-    let inline hasNode n (N, _) = hasVert n N
-    let inline nodes (N, _) = verts N
 
-    let inline addNode n (N, E) = (addVert n N), E
-    let inline addNodes ns (N, E) = (addVerts ns N), E
-    
-    let inline removeNode node (N, E) =
-        let newEdges = (^ES : (member RemoveNode : 'N -> ^ES) (E, node))
-        (removeVert node N), newEdges
+    type Graph<'V, 'VS, 'ES when 'VS :> VertexSet.IVertexSet<'V> and 'ES :> EdgeSet.IEdgeSet<'V>> = Graph of 'VS * 'ES with
+        member this.V = match this with Graph (V, E) -> V
+        member this.E = match this with Graph (V, E) -> E
+        static member applyV f (g : Graph<'V, 'VS, 'ES>) = f g.V
+        static member applyE f (g : Graph<'V, 'VS, 'ES>) = f g.E
+        static member mapV f (g : Graph<'V, 'VS, 'ES>) = Graph (f g.V, g.E)
+        static member mapE f (g : Graph<'V, 'VS, 'ES>) = Graph (g.V, f g.E)
+        static member mapVE f1 f2 (g : Graph<'V, 'VS, 'ES>) = Graph (f1 g.V, f2 g.E)
 
-    let inline removeNodes nodes (N, E) =
-        let newEdges = (^ES : (member RemoveNodes : 'N seq -> ^ES) (E, nodes))
-        (removeVerts nodes N), newEdges
+    module Graph =
+        let inline hasVert vert G = Graph.applyV (VertexSet.hasVert vert) G
+        let inline verts G = Graph.applyV VertexSet.verts G
+        let inline neighbours vert G  = Graph.applyE (EdgeSet.neighbours vert) G
+        let inline hasEdge edge G = Graph.applyE (EdgeSet.hasEdge edge) G
+        let inline neighboursWithData vert G = Graph.applyE (EdgeSet.neighboursWithData vert) G
+        let inline getEdgeData edge G = Graph.applyE (EdgeSet.getEdgeData edge) G
+        let inline addVert vert G = Graph.mapV (VertexSet.addVert vert) G
+        let inline addVerts verts G = Graph.mapV (VertexSet.addVerts verts) G
+        let inline removeVert vert G = Graph.mapVE (VertexSet.removeVert vert) (EdgeSet.removeVert vert) G
+        let inline removeVerts verts G = Graph.mapVE (VertexSet.removeVerts verts) (EdgeSet.removeVerts verts) G
+        let inline addEdge edge G = Graph.mapVE (VertexSet.addVerts (Edge.edgeToVerts edge)) (EdgeSet.addEdge edge) G
+        let inline addEdges edges G = Graph.mapVE (VertexSet.addVerts (Edge.edgesToVerts edges)) (EdgeSet.addEdges edges) G
+        let inline addEdgeWithData edge data G = Graph.mapVE (VertexSet.addVerts (Edge.edgeToVerts edge)) (EdgeSet.addEdgeWithData edge data) G
+        let inline addEdgesWithData edges G = Graph.mapVE (VertexSet.addVerts (Edge.edgesWithDataToVerts edges)) (EdgeSet.addEdgesWithData edges) G
+        let inline removeEdge edge G = Graph.mapE (EdgeSet.removeEdge edge) G
+        let inline removeEdges edges G = Graph.mapE (EdgeSet.removeEdges edges) G
+        let inline freeze G = Graph.mapVE VertexSet.freeze EdgeSet.freeze G
+        
+        let empty<'V when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeSet.empty<'V>)
+        let emptyWithEdgeData<'V, 'E when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeWithDataSet.empty<'V, 'E>)
 
-    let inline addEdge (u, v) (N, E) =
-        let newEdges = (^ES : (member AddNeighbour : ('N * 'N) -> ^ES) (E, (u, v)))
-        (addVerts [u; v] N), newEdges
+    module MultiGraph =
+        let inline edges edge G = Graph.applyE (MultiEdgeSet.edges edge) G
+        let inline hasMultiEdge edge G = Graph.applyE (MultiEdgeSet.hasMultiEdge edge) G
+        let inline parallelEdgeCount edge G = Graph.applyE (MultiEdgeSet.parallelEdgeCount edge) G
+        let inline multiEdgesWithData vert G = Graph.applyE (MultiEdgeSet.multiEdgesWithData vert) G
+        let inline getMultiEdgeData multiEdge G = Graph.applyE (MultiEdgeSet.getMultiEdgeData multiEdge) G
+        let inline addMultiEdge multiEdge G = Graph.mapVE (VertexSet.addVerts (Edge.multiEdgeToVerts multiEdge)) (MultiEdgeSet.addMultiEdge multiEdge) G
+        let inline addMultiEdges multiEdges G = Graph.mapVE (VertexSet.addVerts (Edge.multiEdgesToVerts multiEdges)) (MultiEdgeSet.addMultiEdges multiEdges) G
+        let inline addMultiEdgeWithData multiEdge data G = Graph.mapVE (VertexSet.addVerts (Edge.multiEdgeToVerts multiEdge)) (MultiEdgeSet.addMultiEdgeWithData multiEdge data) G
+        let inline addMultiEdgesWithData multiEdges G = Graph.mapVE (VertexSet.addVerts (Edge.multiEdgesWithDataToVerts multiEdges)) (MultiEdgeSet.addMultiEdgesWithData multiEdges) G
+        let inline removeMultiEdge multiEdge G = Graph.mapE (MultiEdgeSet.removeMultiEdge multiEdge) G
+        let inline removeMultiEdges multiEdges G = Graph.mapE (MultiEdgeSet.removeMultiEdges multiEdges) G
+        
+        let empty<'V when 'V : comparison> = Graph (VertexSet.empty<'V>, MultiEdgeSet.empty<'V>)
+        let emptyWithEdgeData<'V, 'E when 'V : comparison> = Graph (VertexSet.empty<'V>, MultiEdgeWithDataSet.empty<'V, 'E>)
 
-    let inline addEdges edges (N, E) =
-        let allNodes = edges |> Seq.collect (fun (u, v) -> [| u; v |])
-        let newEdges = (^ES : (member AddNeighbours : ('N * 'N) seq -> ^ES) (E, edges))
-        (addVerts allNodes N), newEdges
+module Example = 
+    open Graph
 
-    let inline addEdgeWithData (u, v, d) (N, E) =
-        let newEdges = (^ES : (member AddNeighbour : ('N * 'N * 'E) -> ^ES) (E, (u, v, d)))
-        (addVerts [u; v] N), newEdges
-
-    let inline addEdgesWithData edges (N, E) =
-        let allNodes = edges |> Seq.collect (fun (u, v, _) -> [| u; v |])
-        let newEdges = (^ES : (member AddNeighbours : ('N * 'N * 'E) seq -> ^ES) (E, edges))
-        (addVerts allNodes N), newEdges
-
-    let inline addMultiEdge (u, v, i) (N, E) =
-        let newEdges = (^ES : (member AddEdge : ('N * 'N * int) -> ^ES) (E, (u, v, i)))
-        (addVerts [u; v] N), newEdges
-
-    let inline addMultiEdges multiEdges (N, E) =
-        let allNodes = multiEdges |> Seq.collect (fun (u, v, _) -> [| u; v |])
-        let newEdges = (^ES : (member AddEdges : ('N * 'N * int) seq -> ^ES) (E, multiEdges))
-        (addVerts allNodes N), newEdges
-
-    let inline addMultiEdgeWithData (u, v, i, d) (N, E) =
-        let newEdges = (^ES : (member AddEdge : ('N * 'N * int * 'E) -> ^ES) (E, (u, v, i, d)))
-        (addVerts [u; v] N), newEdges
-
-    let inline addMultiEdgesWithData multiEdges (N, E) =
-        let allNodes = multiEdges |> Seq.collect (fun (u, v, _, _) -> [| u; v |])
-        let newEdges = (^ES : (member AddEdges : ('N * 'N * int * 'E) seq -> ^ES) (E, multiEdges))
-        (addVerts allNodes N), newEdges
-
-    let inline removeEdge edge (N, E) =
-        let newEdges = (^ES : (member RemoveNeighbour : ('N * 'N) -> ^ES) (E, edge))
-        N, newEdges
-
-    let inline removeEdges edges (N, E) =
-        let newEdges = (^ES : (member RemoveNeighbours : ('N * 'N) seq -> ^ES) (E, edges))
-        N, newEdges
-
-    let inline removeMultiEdge multiEdge (N, E) =
-        let newEdges = (^ES : (member RemoveEdge : ('N * 'N * int) -> ^ES) (E, multiEdge))
-        N, newEdges
-
-    let inline removeMultiEdges multiEdges (N, E) =
-        let newEdges = (^ES : (member RemoveEdges : ('N * 'N * int) seq -> ^ES) (E, multiEdges))
-        N, newEdges
-
-    let inline freeze (N, E) =
-        let newEdges = (^ES : (member AsFrozen : unit -> ^FES) E)
-        (VertexSet.freeze N), newEdges
-
-    let inline neighboursWithData n (_, E : IEdgeWithDataSet<'N, 'E>) = E.NeighboursWithData n
-    let inline getEdgeData edge (_, E : IEdgeWithDataSet<'N, 'E>) = E.GetNeighbourData edge
-    let inline multiEdgesWithData multiEdge (_, E : IMultiEdgeWithDataSet<'N, 'E>) = E.EdgesWithData multiEdge
-    let inline getMultiEdgeData multiEdge (_, E : IMultiEdgeWithDataSet<'N, 'E>) = E.GetEdgeData multiEdge
-
-    let inline neighbours n (_, E : IEdgeSet<'N>) = E.Neighbours n
-    let inline hasEdge e (_, E : IEdgeSet<'N>) = E.HasNeighbour e
-    let inline hasMultiEdge e (_, E : IMultiEdgeSet<'N>) = E.HasEdge e
-
+    let testGraph = 
+        Graph.emptyWithEdgeData<int, int>
+        |> Graph.addVert 2
+        |> Graph.addVerts [|2; 3|]
+        |> Graph.addEdgeWithData (1, 2) 3
