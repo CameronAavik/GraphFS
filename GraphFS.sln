@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28917.181
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "GraphFS", "GraphFS\GraphFS.fsproj", "{241694C9-FDD1-4AB3-BF23-3D99D3EB066E}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "GraphFS", "src\GraphFS\GraphFS.fsproj", "{CFA22ADC-E901-4B96-AD25-399F4EFF7F6B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GraphFS.Sample", "GraphFS.Sample\GraphFS.Sample.fsproj", "{1258B8C4-BE47-436C-93FD-44A79644873E}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "GraphFS.Sample", "src\GraphFS.Sample\GraphFS.Sample.fsproj", "{20F9F7AD-9C7B-4DD7-A38B-1FF70D45FC55}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{241694C9-FDD1-4AB3-BF23-3D99D3EB066E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{241694C9-FDD1-4AB3-BF23-3D99D3EB066E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{241694C9-FDD1-4AB3-BF23-3D99D3EB066E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{241694C9-FDD1-4AB3-BF23-3D99D3EB066E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1258B8C4-BE47-436C-93FD-44A79644873E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1258B8C4-BE47-436C-93FD-44A79644873E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1258B8C4-BE47-436C-93FD-44A79644873E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1258B8C4-BE47-436C-93FD-44A79644873E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFA22ADC-E901-4B96-AD25-399F4EFF7F6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFA22ADC-E901-4B96-AD25-399F4EFF7F6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFA22ADC-E901-4B96-AD25-399F4EFF7F6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFA22ADC-E901-4B96-AD25-399F4EFF7F6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20F9F7AD-9C7B-4DD7-A38B-1FF70D45FC55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20F9F7AD-9C7B-4DD7-A38B-1FF70D45FC55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20F9F7AD-9C7B-4DD7-A38B-1FF70D45FC55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20F9F7AD-9C7B-4DD7-A38B-1FF70D45FC55}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
