@@ -12,6 +12,7 @@
     <Compile Include="Core\EdgeSet.fs" />
     <Compile Include="Core\MultiEdgeSet.fs" />
     <Compile Include="Graph.fs" />
+    <Compile Include="Algorithms\ShortestPath.fs" />
   </ItemGroup>
 
 </Project>

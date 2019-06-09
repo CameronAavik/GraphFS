@@ -37,6 +37,8 @@ module Graph =
         let fromSets V E = Graph (V, E)
         let empty<'V when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeSet.empty<'V>)
         let emptyWithEdgeData<'V, 'E when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeWithDataSet.empty<'V, 'E>)
+        let fromEdges<'V when 'V : comparison> edges = empty<'V> |> addEdges edges
+        let fromEdgesWithData<'V, 'E when 'V : comparison> edges = emptyWithEdgeData<'V, 'E> |> addEdgesWithData edges
 
 
     module MultiGraph =
