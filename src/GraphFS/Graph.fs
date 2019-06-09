@@ -34,6 +34,7 @@ module Graph =
         let inline removeEdges edges G = Graph.mapE (EdgeSet.removeEdges edges) G
         let inline freeze G = Graph.mapVE VertexSet.freeze EdgeSet.freeze G
         
+        let fromSets V E = Graph (V, E)
         let empty<'V when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeSet.empty<'V>)
         let emptyWithEdgeData<'V, 'E when 'V : comparison> = Graph (VertexSet.empty<'V>, EdgeWithDataSet.empty<'V, 'E>)
 

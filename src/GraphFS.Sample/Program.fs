@@ -2,7 +2,7 @@
 open GraphFS.Core.VertexSet
 open GraphFS.Core.EdgeSet
 
-let simpleExample =
+let simpleExample () =
     let g = 
         Graph.empty
         |> Graph.addEdge (0, 1)
@@ -13,7 +13,7 @@ let simpleExample =
     printfn "Neighbours of 2: %A" (Graph.neighbours 2 g |> Seq.toList) // Neighbours of 2: [3]
     
 
-let infiniteGridExample =
+let infiniteGridExample () =
     let vertexSet = { new IVertexSet<int * int> with member __.HasVert _ = true}
     let edgeSet = 
         { new IEdgeSet<int * int> with
@@ -24,12 +24,12 @@ let infiniteGridExample =
             member __.Neighbours p =
                 let x, y = p
                 upcast [| (x-1, y); (x+1, y); (x, y-1); (x, y+1) |] }
-    let gridGraph = new Graph<_, _, _>(vertexSet, edgeSet)
+    let gridGraph = Graph.fromSets vertexSet edgeSet
     ()
 
 
 [<EntryPoint>]
 let main argv =
-    simpleExample |> ignore
-    infiniteGridExample |> ignore
+    simpleExample()
+    infiniteGridExample()
     0
