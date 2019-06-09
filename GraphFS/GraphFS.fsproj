@@ -5,11 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Helpers\DictHelpers.fs" />
+    <Compile Include="Helpers\MapHelpers.fs" />
+    <Compile Include="Core\Edge.fs" />
+    <Compile Include="Core\VertexSet.fs" />
+    <Compile Include="Core\EdgeSet.fs" />
+    <Compile Include="Core\MultiEdgeSet.fs" />
     <Compile Include="Graph.fs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="FSharpPlus" Version="1.1.0-CI00252" />
   </ItemGroup>
 
 </Project>
