@@ -6,14 +6,14 @@ open GraphFS.Core.EdgeSet
 open GraphFS.Core.MultiEdgeSet
 
 module Graph =
-    type Graph<'V, 'VS, 'ES when 'VS :> IVertexSet<'V> and 'ES :> IEdgeSet<'V>> = Graph of 'VS * 'ES with
-        member this.V = match this with Graph (V, _) -> V
-        member this.E = match this with Graph (_, E) -> E
+    type Graph<'V, 'VS, 'ES when 'VS :> IVertexSet<'V> and 'ES :> IEdgeSet<'V>>(V: 'VS, E: 'ES) =
+        member __.V = V
+        member __.E = E
         static member applyV f (g : Graph<'V, 'VS, 'ES>) = f g.V
         static member applyE f (g : Graph<'V, 'VS, 'ES>) = f g.E
-        static member mapV f (g : Graph<'V, 'VS, 'ES>) = Graph (f g.V, g.E)
-        static member mapE f (g : Graph<'V, 'VS, 'ES>) = Graph (g.V, f g.E)
-        static member mapVE f1 f2 (g : Graph<'V, 'VS, 'ES>) = Graph (f1 g.V, f2 g.E)
+        static member mapV f (g : Graph<'V, 'VS, 'ES>) = Graph(f g.V, g.E)
+        static member mapE f (g : Graph<'V, 'VS, 'ES>) = Graph(g.V, f g.E)
+        static member mapVE f1 f2 (g : Graph<'V, 'VS, 'ES>) = Graph(f1 g.V, f2 g.E)
 
     module Graph =
         let inline hasVert vert G = Graph.applyV (VertexSet.hasVert vert) G
