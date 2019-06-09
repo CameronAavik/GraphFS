@@ -32,19 +32,12 @@ module MultiEdgeSet =
             member __.GetMultiEdgeData e = DictHelpers.GetOrThrow3 e edges
 
     module FrozenMultiEdgeWithDataSet =
-        let private edgesToMultiEdges edges =
+        let ofSeq (multiEdges : ('V * 'V * int * 'E) seq) = multiEdges |> DictHelpers.FromTupleSeq3 |> FrozenMultiEdgeWithDataSet<'V, 'E>
+        let ofEdgeSeq (edges : ('V * 'V * 'E) seq) =
             edges
             |> Seq.groupBy (fun (u, v, _) -> (u, v))
             |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i (_, _, d) -> (u, v, i, d)) s)
-        let ofSeq (multiEdges : ('V * 'V * int * 'E) seq) = multiEdges |> DictHelpers.FromTupleSeq3 |> FrozenMultiEdgeWithDataSet<'V, 'E>
-        let ofEdgeSeq (edges : ('V * 'V * 'E) seq) = edges |> edgesToMultiEdges |> ofSeq
-        let ofUndirectedSeq multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _, _) -> a <> b)
-            |> Seq.map (fun (a, b, i, d) -> (b, a, i, d))
-            |> Seq.append multiEdges
             |> ofSeq
-        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
         let empty<'V, 'E when 'V : equality> = new FrozenMultiEdgeWithDataSet<'V, 'E>(new Dictionary<_,_>())
         
     type FrozenMultiEdgeSet<'V>(edges : Dictionary<'V, Dictionary<'V, Dictionary<int, unit>>>) =
@@ -52,23 +45,16 @@ module MultiEdgeSet =
         interface IMultiEdgeSet<'V>
 
     module FrozenMultiEdgeSet =
-        let private edgesToMultiEdges edges =
-            edges
-            |> Seq.groupBy id
-            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
         let ofSeq (multiEdges : ('V * 'V * int) seq) =
             multiEdges
             |> Seq.map (fun (u, v, i) -> (u, v, i, ()))
             |> DictHelpers.FromTupleSeq3
             |> FrozenMultiEdgeSet<'V>
-        let ofEdgeSeq (edges : ('V * 'V) seq) = edges |> edgesToMultiEdges |> ofSeq
-        let ofUndirectedSeq multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _) -> a <> b)
-            |> Seq.map (fun (a, b, i) -> (b, a, i))
-            |> Seq.append multiEdges
+        let ofEdgeSeq (edges : ('V * 'V) seq) =
+            edges
+            |> Seq.groupBy id
+            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
             |> ofSeq
-        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
         let empty<'V when 'V : equality> = new FrozenMultiEdgeSet<'V>(new Dictionary<_,_>())
 
     type MultiEdgeWithDataSet<'V, 'E when 'V : comparison>(edges : Map<'V, Map<'V, Map<int, 'E>>>) =
@@ -101,19 +87,12 @@ module MultiEdgeSet =
             member __.GetMultiEdgeData e = MapHelpers.GetOrThrow3 e edges
 
     module MultiEdgeWithDataSet =
-        let private edgesToMultiEdges edges =
+        let ofSeq multiEdges = multiEdges |> MapHelpers.FromTupleSeq3 |> MultiEdgeWithDataSet<'V, 'E>
+        let ofEdgeSeq edges =
             edges
             |> Seq.groupBy (fun (u, v, _) -> (u, v))
             |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i (_, _, d) -> (u, v, i, d)) s)
-        let ofSeq multiEdges = multiEdges |> MapHelpers.FromTupleSeq3 |> MultiEdgeWithDataSet<'V, 'E>
-        let ofEdgeSeq edges = edges |> edgesToMultiEdges |> ofSeq
-        let ofUndirectedSeq multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _, _) -> a <> b)
-            |> Seq.map (fun (a, b, i, d) -> (b, a, i, d))
-            |> Seq.append multiEdges
             |> ofSeq
-        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
         let empty<'V, 'E when 'V : comparison> = new MultiEdgeWithDataSet<'V, 'E>(Map.empty)
         
     type MultiEdgeSet<'V when 'V : comparison>(edges : Map<'V, Map<'V, Map<int, unit>>>) =
@@ -140,23 +119,16 @@ module MultiEdgeSet =
             member __.ParallelEdgeCount n = (MapHelpers.GetOrDefault2 n Map.empty edges).Count
 
     module MultiEdgeSet =
-        let private edgesToMultiEdges edges =
-            edges
-            |> Seq.groupBy id
-            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
         let ofSeq (multiEdges : ('V * 'V * int) seq) = 
             multiEdges
             |> Seq.map (fun (u, v, i) -> (u, v, i, ()))
             |> MapHelpers.FromTupleSeq3
             |> MultiEdgeSet<'V>
-        let ofEdgeSeq (edges : ('V * 'V) seq) = edges |> edgesToMultiEdges |> ofSeq
-        let ofUndirectedSeq multiEdges =
-            multiEdges
-            |> Seq.filter (fun (a, b, _) -> a <> b)
-            |> Seq.map (fun (a, b, i) -> (b, a, i))
-            |> Seq.append multiEdges
+        let ofEdgeSeq (edges : ('V * 'V) seq) =
+            edges
+            |> Seq.groupBy id
+            |> Seq.collect (fun ((u, v), s) -> Seq.mapi (fun i _ -> (u, v, i)) s)
             |> ofSeq
-        let ofUndirectedEdgeSeq edges = edges |> edgesToMultiEdges |> ofUndirectedSeq
         let empty<'V when 'V : comparison> = new MultiEdgeSet<'V>(Map.empty)
         
         let inline edges vertex (edgeSet : IMultiEdgeSet<'V>) = edgeSet.Edges vertex

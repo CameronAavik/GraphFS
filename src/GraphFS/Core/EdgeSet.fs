@@ -22,12 +22,6 @@ module EdgeSet =
 
     module FrozenEdgeWithDataSet =
         let ofSeq edges = edges |> DictHelpers.FromTupleSeq2 |> FrozenEdgeWithDataSet<'V, 'E>
-        let ofUndirectedSeq edges =
-            edges
-            |> Seq.filter (fun (a, b, _) -> a <> b)
-            |> Seq.map (fun (a, b, d) -> (b, a, d))
-            |> Seq.append edges
-            |> ofSeq
         let empty<'V, 'E when 'V : equality> = new FrozenEdgeWithDataSet<'V, 'E>(new Dictionary<'V, Dictionary<'V, 'E>>())
 
     type FrozenEdgeSet<'V>(edges : Dictionary<'V, Dictionary<'V, unit>>) =
@@ -40,12 +34,6 @@ module EdgeSet =
             |> Seq.map (fun (u, v) -> (u, v, ()))
             |> DictHelpers.FromTupleSeq2
             |> FrozenEdgeSet<'V>
-        let ofUndirectedSeq edges =
-            edges
-            |> Seq.filter (fun (a, b) -> a <> b)
-            |> Seq.map (fun (a, b) -> (b, a))
-            |> Seq.append edges
-            |> ofSeq
         let empty<'V when 'V : equality> = new FrozenEdgeSet<'V>(new Dictionary<'V, Dictionary<'V, unit>>())
 
     type EdgeWithDataSet<'V, 'E when 'V : comparison>(edges : Map<'V, Map<'V, 'E>>) =
